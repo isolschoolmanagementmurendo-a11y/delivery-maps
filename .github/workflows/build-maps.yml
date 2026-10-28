@@ -3,7 +3,6 @@ name: Compile Mobile Route Files
 on:
   workflow_dispatch:
 
-# 🌍 FUTURE PROOFING: To change countries, just modify these two lines!
 env:
   COUNTRY_NAME: zimbabwe
   CONTINENT_NAME: africa
@@ -31,18 +30,15 @@ jobs:
           import requests
           import json
 
-          # Read the country and continent variables defined at the top of the file
           country = os.environ.get("COUNTRY_NAME")
           continent = os.environ.get("CONTINENT_NAME")
 
           print(f"Downloading raw map data for {country} ({continent})...")
-          
-          # Dynamically builds the download URL using your variables
           url = f"https://geofabrik.de{continent}/{country}-latest.osm.pbf"
           
           response = requests.get(url, stream=True)
           if response.status_code != 200:
-              raise Exception(f"Failed to download map data. Check if country/continent names are spelled correctly on Geofabrik.")
+              raise Exception(f"Failed to download map data. Check names on Geofabrik.")
               
           filename = f"{country}.osm.pbf"
           with open(filename, "wb") as f:
@@ -55,16 +51,12 @@ jobs:
               "features": []
           }
           
-          # Saves the file named after your selected country
           output_file = f"clean_roads_{country}.json"
           with open(output_file, "w") as f:
               json.dump(route_data, f)
           
           print(f"Map filtering complete. Created {output_file}")
 
-      # Automatically creates a release tagged with the country name to keep them organized
-      # Example: tag will be v1.0.0-zimbabwe
-       Tar-compressing isn't needed for raw json, so we upload the file directly.
       - name: Create GitHub Release and Upload Map Asset
         uses: softprops/action-gh-release@v2
         with:
