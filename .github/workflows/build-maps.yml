@@ -3,39 +3,37 @@ name: Compile Mobile Route Files
 on:
   workflow_dispatch:
 
-env:
-  COUNTRY_NAME: zimbabwe
-  CONTINENT_NAME: africa
-
 jobs:
   build-routing-tiles:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v4
 
-      - name: Build Maps Using Valhalla Docker Container
+      - name: Install Valhalla Software Cleanly
         run: |
-          # 1. Create the working folders that Docker requires
-          mkdir -p custom_files
-          chmod 777 custom_files
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:valhalla-routing/valhalla
+          sudo apt-get update
+          sudo apt-get install -y valhalla-bin
 
-          # 2. Run the Docker container passing configuration through Environment Flags
-          docker run --rm \
-            -v ${{ github.workspace }}/custom_files:/custom_files \
-            -e build_tiles=True \
-            -e tile_urls="https://geofabrik.de{{ env.CONTINENT_NAME }}/${{ env.COUNTRY_NAME }}-latest.osm.pbf" \
-            ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+      - name: Download Raw Zimbabwe Street Data
+        run: |
+          curl -LO https://geofabrik.de
 
-          # 3. Compress the completed routing tiles directly out of the folder
-          tar -czf delivery_routes.tar.gz -C custom_files/valhalla_tiles .
+      - name: Compile and Filter (Keep Only Road Graph Network)
+        run: |
+          mkdir -p valhalla_tiles
+          valhalla_build_config --mjolnir-tile-dir=${PWD}/valhalla_tiles --mjolnir-tile-extract=${PWD}/zimbabwe_routes.tar.gz > valhalla.json
+          valhalla_build_tiles -c valhalla.json zimbabwe-latest.osm.pbf
 
       - name: Create GitHub Release and Upload Map Asset
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v1.0.0
           name: Release v1.0.0 (Automated Maps)
-          files: delivery_routes.tar.gz
+          files: zimbabwe_routes.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
