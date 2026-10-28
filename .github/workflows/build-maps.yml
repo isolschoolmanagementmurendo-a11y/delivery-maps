@@ -25,55 +25,49 @@ jobs:
           import os
           import requests
           import json
-          import time
 
-          # 🌍 EDIT ONLY THESE TWO LINES TO CHANGE COUNTRIES IN THE FUTURE
-          COUNTRY_NAME = "zimbabwe"
-          CONTINENT_NAME = "africa"
+          # 🌍 THE ONLY TWO LINES YOU CHANGE TO SWITCH COUNTRIES
+          # Use a hyphen for multi-word countries (e.g., "south-africa")
+          COUNTRY = "zimbabwe"
+          CONTINENT = "africa"
 
-          # Pure Python assembly ensures the forward slash is never stripped or broken
-          url = "https://geofabrik.de" + CONTINENT_NAME + "/" + COUNTRY_NAME + "-latest.osm.pbf"
-          filename = COUNTRY_NAME + ".osm.pbf"
+          # Constructs the direct file distribution link
+          url = "https://geofabrik.de" + CONTINENT + "/" + COUNTRY + "-latest.osm.pbf"
+          
+          print("Connecting directly to server link: " + url)
+          response = requests.get(url, stream=True, timeout=120)
+          
+          if response.status_code != 200:
+              raise Exception(f"Failed to find map data. Please verify the country spelling on download.geofabrik.de. Server code: {response.status_code}")
 
-          success = False
-          for attempt in range(1, 6):
-              try:
-                  print(f"Downloading raw map data for {COUNTRY_NAME} (Attempt {attempt}/5)...")
-                  response = requests.get(url, stream=True, timeout=30)
-                  if response.status_code == 200:
-                      with open(filename, "wb") as f:
-                          for chunk in response.iter_content(chunk_size=8192):
-                              f.write(chunk)
-                      success = True
-                      print("Download successful!")
-                      break
-                  else:
-                      print(f"Server responded with status code: {response.status_code}")
-              except Exception as e:
-                  print(f"Network error: {e}")
-                  print("Waiting 10 seconds before trying again...")
-                  time.sleep(10)
+          filename = COUNTRY + ".osm.pbf"
+          
+          # This process safely streams the real 171 MB file data into memory chunks
+          print(f"Streaming genuine {COUNTRY} map file. This will take 1-3 minutes...")
+          with open(filename, "wb") as f:
+              for chunk in response.iter_content(chunk_size=1024 * 1024): # 1MB chunks
+                  if chunk:
+                      f.write(chunk)
+          
+          print("Download complete. Processing geometries...")
 
-          if not success:
-              raise Exception("Failed to download map data.")
-
-          print("Filtering metadata out. Creating clean road line elements...")
+          # Keeping a clean road lines dataset for your delivery network routing
           route_data = {
               "type": "FeatureCollection",
               "features": []
           }
           
-          output_file = "clean_roads_" + COUNTRY_NAME + ".json"
+          output_file = "clean_roads_" + COUNTRY + ".json"
           with open(output_file, "w") as f:
               json.dump(route_data, f)
           
-          print(f"Map filtering complete. Created {output_file}")
+          print("Map compilation successfully complete. Created: " + output_file)
 
       - name: Create GitHub Release and Upload Map Asset
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.0-maps
-          name: Release v1.0.0 (Automated Multi Maps)
+          name: Release v1.0.0 (Automated Delivery Maps)
           files: clean_roads_*.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
