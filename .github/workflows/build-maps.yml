@@ -3,7 +3,6 @@ name: Compile Mobile Route Files
 on:
   workflow_dispatch:
 
-# 🌍 FUTURE PROOFING: To change countries, just modify these two lines!
 env:
   COUNTRY_NAME: zimbabwe
   CONTINENT_NAME: africa
@@ -18,18 +17,19 @@ jobs:
 
       - name: Build Maps Using Valhalla Docker Container
         run: |
-          # 1. Create a local folder to store the output tiles
-          mkdir -p custom_tiles
-          
-          # 2. Run the processing engine inside a stable Docker container
-          docker run --rm \
-            -v ${{ github.workspace }}/custom_tiles:/custom_tiles \
-            ghcr.io/gis-ops/docker-valhalla/valhalla:latest \
-            build-tiles \
-            --download-urls https://geofabrik.de{{ env.CONTINENT_NAME }}/${{ env.COUNTRY_NAME }}-latest.osm.pbf
+          # 1. Create the working folders that Docker requires
+          mkdir -p custom_files
+          chmod 777 custom_files
 
-          # 3. Compress the folder into a single clean file for your app
-          tar -czf delivery_routes.tar.gz -C custom_tiles .
+          # 2. Run the Docker container passing configuration through Environment Flags
+          docker run --rm \
+            -v ${{ github.workspace }}/custom_files:/custom_files \
+            -e build_tiles=True \
+            -e tile_urls="https://geofabrik.de{{ env.CONTINENT_NAME }}/${{ env.COUNTRY_NAME }}-latest.osm.pbf" \
+            ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+
+          # 3. Compress the completed routing tiles directly out of the folder
+          tar -czf delivery_routes.tar.gz -C custom_files/valhalla_tiles .
 
       - name: Create GitHub Release and Upload Map Asset
         uses: softprops/action-gh-release@v1
