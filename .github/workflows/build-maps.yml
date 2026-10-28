@@ -29,21 +29,35 @@ jobs:
           import os
           import requests
           import json
+          import time
 
           country = os.environ.get("COUNTRY_NAME")
           continent = os.environ.get("CONTINENT_NAME")
-
-          print(f"Downloading raw map data for {country} ({continent})...")
           url = f"https://geofabrik.de{continent}/{country}-latest.osm.pbf"
-          
-          response = requests.get(url, stream=True)
-          if response.status_code != 200:
-              raise Exception(f"Failed to download map data. Check names on Geofabrik.")
-              
           filename = f"{country}.osm.pbf"
-          with open(filename, "wb") as f:
-              for chunk in response.iter_content(chunk_size=8192):
-                  f.write(chunk)
+
+          # 🔄 Automatic Retry Loop for Network Drops
+          success = False
+          for attempt in range(1, 6):
+              try:
+                  print(f"Downloading raw map data for {country} (Attempt {attempt}/5)...")
+                  response = requests.get(url, stream=True, timeout=30)
+                  if response.status_code == 200:
+                      with open(filename, "wb") as f:
+                          for chunk in response.iter_content(chunk_size=8192):
+                              f.write(chunk)
+                      success = True
+                      print("Download successful!")
+                      break
+                  else:
+                      print(f"Server responded with status code: {response.status_code}")
+              except Exception as e:
+                  print(f"Network blip encountered: {e}")
+                  print("Waiting 10 seconds before trying again...")
+                  time.sleep(10)
+
+          if not success:
+              raise Exception("Failed to download map data after 5 attempts due to server network issues. Please try running the workflow again later.")
 
           print("Filtering metadata out. Creating clean road line elements...")
           route_data = {
