@@ -3,10 +3,6 @@ name: Compile Mobile Route Files
 on:
   workflow_dispatch:
 
-env:
-  COUNTRY_NAME: zimbabwe
-  CONTINENT_NAME: africa
-
 jobs:
   build-routing-tiles:
     runs-on: ubuntu-latest
@@ -31,16 +27,18 @@ jobs:
           import json
           import time
 
-          country = os.environ.get("COUNTRY_NAME")
-          continent = os.environ.get("CONTINENT_NAME")
-          url = f"https://geofabrik.de{continent}/{country}-latest.osm.pbf"
-          filename = f"{country}.osm.pbf"
+          # 🌍 EDIT ONLY THESE TWO LINES TO CHANGE COUNTRIES IN THE FUTURE
+          COUNTRY_NAME = "zimbabwe"
+          CONTINENT_NAME = "africa"
 
-          # 🔄 Automatic Retry Loop for Network Drops
+          # Pure Python assembly ensures the forward slash is never stripped or broken
+          url = "https://geofabrik.de" + CONTINENT_NAME + "/" + COUNTRY_NAME + "-latest.osm.pbf"
+          filename = COUNTRY_NAME + ".osm.pbf"
+
           success = False
           for attempt in range(1, 6):
               try:
-                  print(f"Downloading raw map data for {country} (Attempt {attempt}/5)...")
+                  print(f"Downloading raw map data for {COUNTRY_NAME} (Attempt {attempt}/5)...")
                   response = requests.get(url, stream=True, timeout=30)
                   if response.status_code == 200:
                       with open(filename, "wb") as f:
@@ -52,12 +50,12 @@ jobs:
                   else:
                       print(f"Server responded with status code: {response.status_code}")
               except Exception as e:
-                  print(f"Network blip encountered: {e}")
+                  print(f"Network error: {e}")
                   print("Waiting 10 seconds before trying again...")
                   time.sleep(10)
 
           if not success:
-              raise Exception("Failed to download map data after 5 attempts due to server network issues. Please try running the workflow again later.")
+              raise Exception("Failed to download map data.")
 
           print("Filtering metadata out. Creating clean road line elements...")
           route_data = {
@@ -65,7 +63,7 @@ jobs:
               "features": []
           }
           
-          output_file = f"clean_roads_{country}.json"
+          output_file = "clean_roads_" + COUNTRY_NAME + ".json"
           with open(output_file, "w") as f:
               json.dump(route_data, f)
           
@@ -74,8 +72,8 @@ jobs:
       - name: Create GitHub Release and Upload Map Asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0-${{ env.COUNTRY_NAME }}
-          name: Release v1.0.0 (${{ env.COUNTRY_NAME }} Automated Maps)
-          files: clean_roads_${{ env.COUNTRY_NAME }}.json
+          tag_name: v1.0.0-maps
+          name: Release v1.0.0 (Automated Multi Maps)
+          files: clean_roads_*.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
