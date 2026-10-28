@@ -14,11 +14,14 @@ jobs:
       - name: Install Valhalla Software on Cloud Server
         run: |
           sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:valhalla-routing/valhalla
+          sudo apt-get update
           sudo apt-get install -y valhalla-bin
 
       - name: Download Raw Zimbabwe Street Data
         run: |
-          curl -LO https://download.geofabrik.de/africa/zimbabwe-latest.osm.pbf
+          curl -LO https://geofabrik.de
 
       - name: Compile and Filter (Keep Only Road Graph Network)
         run: |
