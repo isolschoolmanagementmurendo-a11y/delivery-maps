@@ -1,0 +1,37 @@
+name: Compile Mobile Route Files
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-routing-tiles:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Install Valhalla Software on Cloud Server
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valhalla-bin
+
+      - name: Download Raw Zimbabwe Street Data
+        run: |
+          curl -LO https://download.geofabrik.de/africa/zimbabwe-latest.osm.pbf
+
+      - name: Compile and Filter (Keep Only Road Graph Network)
+        run: |
+          mkdir valhalla_tiles
+          valhalla_build_config --mjolnir-tile-dir /valhalla_tiles --mjolnir-tile-extract /zimbabwe.tar.gz > valhalla.json
+          valhalla_build_tiles -c valhalla.json zimbabwe-latest.osm.pbf
+          tar -czf zimbabwe_routes.tar.gz valhalla_tiles/
+
+      - name: Create GitHub Release and Upload Map Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.0
+          name: Release v1.0.0 (Automated Maps)
+          files: zimbabwe_routes.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
