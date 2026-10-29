@@ -21,8 +21,8 @@ jobs:
 
       - name: Download Raw Zimbabwe Data
         run: |
-          echo "Downloading Zimbabwe data safely..."
-          wget -O zimbabwe-latest.osm.pbf https://geofabrik.de
+          echo "Downloading Zimbabwe data with browser simulation..."
+          wget -U "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -O zimbabwe-latest.osm.pbf https://geofabrik.de
           echo "Verifying file size:"
           ls -lh zimbabwe-latest.osm.pbf
 
