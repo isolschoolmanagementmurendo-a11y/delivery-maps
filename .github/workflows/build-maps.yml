@@ -1,69 +1,53 @@
-name: Filter Raw OSM Map to Roads
+name: Process Geofabrik Map
 
 on:
   workflow_dispatch:
     inputs:
-      tag_name:
-        description: 'Release tag where you uploaded the file'
+      country_path:
+        description: 'Geofabrik path (e.g. africa/zimbabwe-latest.osm.pbf)'
         required: true
-        default: 'raw-data'
+        default: 'africa/zimbabwe-latest.osm.pbf'
       country_code:
-        description: 'Output country prefix'
+        description: 'Country identifier (e.g. zimbabwe)'
         required: true
         default: 'zimbabwe'
 
-jobs:
-  filter:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+permissions:
+  contents: write
 
+jobs:
+  build:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install osmium-tool
+      - name: Install Osmium Tool
         run: |
           sudo apt-get update
           sudo apt-get install -y osmium-tool
 
-      - name: Download Raw File from Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download clean extract from Geofabrik
         run: |
-          mkdir -p input_dir
-          echo "Downloading from release tag: ${{ github.event.inputs.tag_name }}..."
-          gh release download "${{ github.event.inputs.tag_name }}" \
-            -R "$GITHUB_REPOSITORY" \
-            --pattern "*.pbf" \
-            --dir input_dir
-          
-          # Find the exact downloaded pbf file
-          RAW_FILE=$(find input_dir -name "*.pbf" | head -n 1)
-          if [ -z "$RAW_FILE" ]; then
-            echo "Error: No .pbf file found in release tag ${{ github.event.inputs.tag_name }}"
-            exit 1
-          fi
-          
-          echo "Found downloaded file: $RAW_FILE"
-          ls -lh "$RAW_FILE"
-          cp "$RAW_FILE" raw.osm.pbf
+          echo "Downloading from Geofabrik..."
+          curl -L -f -A "Mozilla/5.0" \
+            -o raw.osm.pbf \
+            "https://download.geofabrik.de/${{ github.event.inputs.country_path }}"
+          ls -lh raw.osm.pbf
 
       - name: Filter Roads for Routing
         run: |
-          echo "Filtering out non-road layers..."
           osmium tags-filter raw.osm.pbf \
-            w/highway=motorway,trunk,primary,secondary,tertiary,unclassified,residential,service,living_street \
-            -o "${{ github.event.inputs.country_code }}-roads.osm.pbf" --overwrite
-          
-          echo "Processed clean file size:"
+            w/highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary,secondary_link,tertiary,tertiary_link,unclassified,residential,living_street,service \
+            -o "${{ github.event.inputs.country_code }}-roads.osm.pbf" \
+            --overwrite
           ls -lh "${{ github.event.inputs.country_code }}-roads.osm.pbf"
 
-      - name: Upload Processed File to a New Release
+      - name: Publish to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "processed-${{ github.event.inputs.country_code }}"
-          name: "Clean Routing Data - ${{ github.event.inputs.country_code }}"
+          tag_name: v1.0.0
+          name: "Processed Road Maps"
           files: "${{ github.event.inputs.country_code }}-roads.osm.pbf"
           make_latest: true
         env:
