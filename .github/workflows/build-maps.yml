@@ -19,10 +19,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y osmium-tool wget
 
-      - name: Download Raw Zimbabwe Data
+      - name: Download Raw Zimbabwe Data (Open Mirror)
         run: |
-          echo "Downloading Zimbabwe data from custom Google Drive link..."
-          wget --no-check-certificate -O zimbabwe-latest.osm.pbf "https://google.com"
+          echo "Downloading Zimbabwe data from OSM France Mirror..."
+          wget -O zimbabwe-latest.osm.pbf https://openstreetmap.fr
           echo "Verifying file size:"
           ls -lh zimbabwe-latest.osm.pbf
 
