@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release tag where you uploaded the file (e.g. raw-data)'
+        description: 'Release tag where you uploaded the file'
         required: true
         default: 'raw-data'
       country_code:
-        description: 'Output country prefix (e.g. zimbabwe)'
+        description: 'Output country prefix'
         required: true
         default: 'zimbabwe'
 
@@ -19,6 +19,9 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Install osmium-tool
         run: |
           sudo apt-get update
@@ -28,24 +31,33 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Downloading PBF file from release tag: ${{ github.event.inputs.tag_name }}..."
-          gh release download "${{ github.event.inputs.tag_name }}" --pattern "*.pbf" --dir .
+          mkdir -p input_dir
+          echo "Downloading from release tag: ${{ github.event.inputs.tag_name }}..."
+          gh release download "${{ github.event.inputs.tag_name }}" \
+            -R "$GITHUB_REPOSITORY" \
+            --pattern "*.pbf" \
+            --dir input_dir
           
-          # Rename whatever .pbf file was downloaded to raw.osm.pbf
-          mv *.pbf raw.osm.pbf
+          # Find the exact downloaded pbf file
+          RAW_FILE=$(find input_dir -name "*.pbf" | head -n 1)
+          if [ -z "$RAW_FILE" ]; then
+            echo "Error: No .pbf file found in release tag ${{ github.event.inputs.tag_name }}"
+            exit 1
+          fi
           
-          echo "Check downloaded file size:"
-          ls -lh raw.osm.pbf
+          echo "Found downloaded file: $RAW_FILE"
+          ls -lh "$RAW_FILE"
+          cp "$RAW_FILE" raw.osm.pbf
 
       - name: Filter Roads for Routing
         run: |
           echo "Filtering out non-road layers..."
           osmium tags-filter raw.osm.pbf \
             w/highway=motorway,trunk,primary,secondary,tertiary,unclassified,residential,service,living_street \
-            -o ${{ github.event.inputs.country_code }}-roads.osm.pbf --overwrite
+            -o "${{ github.event.inputs.country_code }}-roads.osm.pbf" --overwrite
           
           echo "Processed clean file size:"
-          ls -lh ${{ github.event.inputs.country_code }}-roads.osm.pbf
+          ls -lh "${{ github.event.inputs.country_code }}-roads.osm.pbf"
 
       - name: Upload Processed File to a New Release
         uses: softprops/action-gh-release@v2
@@ -53,5 +65,6 @@ jobs:
           tag_name: "processed-${{ github.event.inputs.country_code }}"
           name: "Clean Routing Data - ${{ github.event.inputs.country_code }}"
           files: "${{ github.event.inputs.country_code }}-roads.osm.pbf"
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
