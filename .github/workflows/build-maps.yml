@@ -3,9 +3,10 @@ name: Filter Raw OSM Map to Roads
 on:
   workflow_dispatch:
     inputs:
-      raw_file_url:
-        description: 'Direct download URL from your GitHub Release'
+      tag_name:
+        description: 'Release tag where you uploaded the file (e.g. raw-data)'
         required: true
+        default: 'raw-data'
       country_code:
         description: 'Output country prefix (e.g. zimbabwe)'
         required: true
@@ -24,9 +25,16 @@ jobs:
           sudo apt-get install -y osmium-tool
 
       - name: Download Raw File from Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Downloading from ${{ github.event.inputs.raw_file_url }}..."
-          curl -L -o raw.osm.pbf "${{ github.event.inputs.raw_file_url }}"
+          echo "Downloading PBF file from release tag: ${{ github.event.inputs.tag_name }}..."
+          gh release download "${{ github.event.inputs.tag_name }}" --pattern "*.pbf" --dir .
+          
+          # Rename whatever .pbf file was downloaded to raw.osm.pbf
+          mv *.pbf raw.osm.pbf
+          
+          echo "Check downloaded file size:"
           ls -lh raw.osm.pbf
 
       - name: Filter Roads for Routing
@@ -36,7 +44,7 @@ jobs:
             w/highway=motorway,trunk,primary,secondary,tertiary,unclassified,residential,service,living_street \
             -o ${{ github.event.inputs.country_code }}-roads.osm.pbf --overwrite
           
-          echo "Cleaned file size:"
+          echo "Processed clean file size:"
           ls -lh ${{ github.event.inputs.country_code }}-roads.osm.pbf
 
       - name: Upload Processed File to a New Release
