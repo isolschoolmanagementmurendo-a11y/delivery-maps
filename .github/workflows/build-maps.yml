@@ -27,7 +27,7 @@ jobs:
       - name: Stream Filter Roads (Zero RAM Crash Risk)
         run: |
           echo "Filtering roads only..."
-          osmium tags-filter zimbabwe-latest.osm.pbf w/highway -o zimbabwe-roads.osm.pbf --overwrite
+          osmium tags-filter zimbabwe-latest.osm.pbf w/highway -o zimbabwe-roads.osm.pbf
 
       - name: Run Python Packaging Script
         run: |
