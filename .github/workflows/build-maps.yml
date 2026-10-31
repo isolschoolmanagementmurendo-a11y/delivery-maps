@@ -1,4 +1,4 @@
-name: Process Geofabrik Map
+name: Process Geofabrik Map for PanoMart
 
 on:
   workflow_dispatch:
@@ -8,7 +8,11 @@ on:
         required: true
         default: 'africa/zimbabwe-latest.osm.pbf'
       country_code:
-        description: 'Country identifier (e.g. zimbabwe)'
+        description: 'Country ISO Code (e.g. ZW, ZA, KE)'
+        required: true
+        default: 'ZW'
+      country_name:
+        description: 'File prefix name (e.g. zimbabwe)'
         required: true
         default: 'zimbabwe'
 
@@ -19,8 +23,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Install Osmium Tool
         run: |
@@ -35,20 +44,33 @@ jobs:
             "https://download.geofabrik.de/${{ github.event.inputs.country_path }}"
           ls -lh raw.osm.pbf
 
-      - name: Filter Roads for Routing
+      - name: Step 1 - Filter Road Network
         run: |
+          echo "Filtering highway ways..."
           osmium tags-filter raw.osm.pbf \
-            w/highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary,secondary_link,tertiary,tertiary_link,unclassified,residential,living_street,service \
-            -o "${{ github.event.inputs.country_code }}-roads.osm.pbf" \
+            w/highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary,secondary_link,tertiary,tertiary_link,unclassified,residential,living_street,service,track,pedestrian,footway,path,cycleway \
+            -o roads.pbf \
             --overwrite
-          ls -lh "${{ github.event.inputs.country_code }}-roads.osm.pbf"
+          ls -lh roads.pbf
+
+      - name: Step 2 - Export to GeoJSON
+        run: |
+          echo "Exporting roads to GeoJSON..."
+          osmium export roads.pbf -o roads.geojson --geometry-types=linestring --overwrite
+          ls -lh roads.geojson
+
+      - name: Step 3 - Build PanoMart Compressed Route Pack
+        run: |
+          echo "Building route pack for ${{ github.event.inputs.country_code }}..."
+          node scripts/build-route-pack.mjs roads.geojson "${{ github.event.inputs.country_code }}" "${{ github.event.inputs.country_name }}.route.json.gz"
+          ls -lh "${{ github.event.inputs.country_name }}.route.json.gz"
 
       - name: Publish to Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.0
-          name: "Processed Road Maps"
-          files: "${{ github.event.inputs.country_code }}-roads.osm.pbf"
+          name: "PanoMart Route Packs"
+          files: "${{ github.event.inputs.country_name }}.route.json.gz"
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
