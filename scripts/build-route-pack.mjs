@@ -1,5 +1,3 @@
-
-#!/usr/bin/env node
 /*
  * Builds an offline route pack for one country from OpenStreetMap roads.
  *
