@@ -1,8 +1,11 @@
+#!/usr/bin/env node
 /*
  * Builds an offline route pack for one country from OpenStreetMap roads.
  *
  *   1. Download the country from https://download.geofabrik.de (e.g. zimbabwe-latest.osm.pbf)
- *   2. osmium tags-filter zimbabwe-latest.osm.pbf w/highway -o roads.pbf
+ *   2. osmium tags-filter zimbabwe-latest.osm.pbf \
+ *        w/highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary,secondary_link,tertiary,tertiary_link,unclassified,residential,service,living_street,cycleway \
+ *        -o roads.pbf
  *      osmium export roads.pbf -o roads.geojson --geometry-types=linestring
  *   3. node scripts/build-route-pack.mjs roads.geojson ZW zimbabwe.route.json.gz
  *   4. Upload the .gz as an asset on a GitHub Release (e.g. tag v1.0.0).
@@ -31,12 +34,13 @@ const edges = [];
 let w = 180, s = 90, e = -180, n = -90;
 
 const node = ([lng, lat]) => {
-  const key = `${lng.toFixed(6)},${lat.toFixed(6)}`;
+  // 5 decimals = ~1.1m precision; cuts millions of characters and snaps micro-gaps
+  const key = `${lng.toFixed(5)},${lat.toFixed(5)}`;
   let id = ids.get(key);
   if (id === undefined) {
     id = nodes.length / 2;
     ids.set(key, id);
-    nodes.push(+lng.toFixed(6), +lat.toFixed(6));
+    nodes.push(+lng.toFixed(5), +lat.toFixed(5));
     w = Math.min(w, lng); e = Math.max(e, lng); s = Math.min(s, lat); n = Math.max(n, lat);
   }
   return id;
