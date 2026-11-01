@@ -44,11 +44,11 @@ jobs:
             "https://download.geofabrik.de/${{ github.event.inputs.country_path }}"
           ls -lh raw.osm.pbf
 
-      - name: Step 1 - Filter Road Network
+      - name: Step 1 - Filter Road Network (Optimized for Riders & Deliveries)
         run: |
-          echo "Filtering highway ways..."
+          echo "Filtering drivable highway ways..."
           osmium tags-filter raw.osm.pbf \
-            w/highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary,secondary_link,tertiary,tertiary_link,unclassified,residential,living_street,service,track,pedestrian,footway,path,cycleway \
+            w/highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary,secondary_link,tertiary,tertiary_link,unclassified,residential,living_street,service,cycleway \
             -o roads.pbf \
             --overwrite
           ls -lh roads.pbf
@@ -74,3 +74,4 @@ jobs:
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
